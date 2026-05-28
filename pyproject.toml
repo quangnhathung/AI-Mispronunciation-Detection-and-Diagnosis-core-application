@@ -1,0 +1,26 @@
+[project]
+name = "mdd-core-application"
+version = "1.0.0"
+description = "FastAPI-based Mispronunciation Detection and Diagnosis API"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "librosa>=0.10.0",
+    "soundfile>=0.12.1",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "transformers>=4.35.0",
+    "jiwer>=3.0.0",
+    "g2p_en>=2.1.0",
+    "numpy>=1.24.0",
+    "loguru>=0.7.0",
+    "pyyaml>=6.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

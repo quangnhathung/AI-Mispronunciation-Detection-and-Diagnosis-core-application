@@ -1,0 +1,73 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+*.so
+*.whl
+
+# --- Virtual environments ---
+venv/
+.venv/
+env/
+.env/
+
+# --- Data ---
+data/raw/
+data/processed/
+data/cache/
+data/manifests/
+
+# --- Checkpoints & Outputs ---
+checkpoints/
+outputs/
+logs/
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# --- OS ---
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+*.ipynb
+
+# --- PyTorch ---
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# --- Testing ---
+.pytest_cache/
+.htmlcov/
+.coverage
+coverage.xml
+*.report.xml
+
+# --- Logs ---
+*.log
+
+# --- Config overrides ---
+*.local.yaml
+*.local.yml
+
+# --- Secrets ---
+*.env
+*.key
+*.pem
+
+# --- Docker ---
+.dockerignore

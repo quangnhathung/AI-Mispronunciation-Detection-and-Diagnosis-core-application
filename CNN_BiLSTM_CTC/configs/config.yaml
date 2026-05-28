@@ -1,0 +1,79 @@
+model:
+  name: cnn_bilstm_ctc
+  input_dim: 80
+  cnn_channels: [64, 128, 256]
+  cnn_kernel_sizes: [3, 3, 3]
+  cnn_strides: [2, 2, 2]
+  cnn_dropout: 0.2
+  rnn_hidden_size: 256
+  rnn_num_layers: 4
+  rnn_dropout: 0.3
+  rnn_bidirectional: true
+  vocab_size: 42
+
+optimizer:
+  name: adamw
+  lr: 0.001
+  weight_decay: 0.0001
+  betas: [0.9, 0.999]
+
+scheduler:
+  name: cosine_annealing
+  T_max: 100
+  eta_min: 1.0e-06
+  warmup_steps: 0
+  warmup_ratio: 0.1
+
+data:
+  dataset: l2arctic
+  data_dir: ./data/raw/L2_ARCTIC
+  cache_dir: ./data/cache
+  manifest_dir: ./data/manifests
+  processed_dir: ./data/processed
+  sample_rate: 16000
+  n_fft: 512
+  win_length: 400
+  hop_length: 160
+  n_mels: 80
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  spec_augment: true
+  freq_mask_param: 15
+  time_mask_param: 25
+  max_audio_length: 30.0
+  min_audio_length: 0.5
+
+training:
+  epochs: 100
+  batch_size: 16
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  gradient_clip: 5.0
+  gradient_accumulation: 1
+  mixed_precision: true
+  monitor_metric: val_f1_macro
+  early_stopping_patience: 10
+  save_top_k: 3
+  log_interval: 10
+  eval_interval: 1
+  seed: 42
+  device: cuda
+  resume_from: null
+  profiler: false
+  save_dir: ./checkpoints
+
+logging:
+  log_dir: ./logs
+  tensorboard: true
+  csv_log: true
+  log_level: INFO
+
+inference:
+  checkpoint_path: ./checkpoints/best.pt
+  beam_width: 5
+  use_beam_search: false
+  device: cuda
+  batch_size: 32
+  num_workers: 2

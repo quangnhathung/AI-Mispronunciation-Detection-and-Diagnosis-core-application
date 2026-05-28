@@ -1,0 +1,11 @@
+# Data & model
+data/raw/
+data/user_audio
+checkpoints/
+
+
+__pycache__/
+**/__pycache__/
+*.py[cod]
+
+*.pyo

@@ -1,0 +1,15 @@
+# Install torch/torchaudio separately depending on your CUDA/CPU setup
+# CPU example:
+#   pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
+# CUDA 11.8 example:
+#   pip install --index-url https://download.pytorch.org/whl/cu118 torch torchvision torchaudio
+
+transformers[sentencepiece]
+soundfile
+tgt
+g2p_en
+numpy
+matplotlib
+tqdm
+tensorboard
+sounddevice

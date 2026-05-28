@@ -1,0 +1,10 @@
+D:\python_env\internal\Scripts\activate.bat
+D:
+cd D:\HungQuang_WorkSpace\MDD_AI
+conda activate mdd_env
+
+
+import nltk
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('averaged_perceptron_tagger_eng')

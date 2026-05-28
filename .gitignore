@@ -1,0 +1,214 @@
+# ==============================
+# PYTHON
+# ==============================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+ENV/
+.conda/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+.coverage.*
+.coverage-*
+coverage/
+coverage.xml
+htmlcov/
+.tox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+*.mo
+*.pot
+*.pyz
+*.whl
+MANIFEST
+
+# ==============================
+# IDE / EDITOR
+# ==============================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
+*.sublime-project.lock
+*.sublime-workspace
+.project
+.classpath
+.settings/
+*.komodoproject
+*.komodotools
+.c9/
+.ensime_cache/
+*.stackdump
+*.bak
+*.orig
+
+# ==============================
+# ENVIRONMENT
+# ==============================
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+.env.staging
+*.env
+*.secret
+
+# ==============================
+# OS
+# ==============================
+.DS_Store
+.DS_Store?
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ==============================
+# LOGS
+# ==============================
+logs/
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# ==============================
+# DATA / UPLOADS / CACHE
+# ==============================
+data/uploads/
+data/cache/
+data/processed/
+data/raw/*
+!data/raw/.gitkeep
+data/manifests/
+*.jsonl
+*.csv
+*.npy
+*.npz
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+
+# ==============================
+# MODEL CHECKPOINTS
+# ==============================
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.onnx
+*.mar
+*.trt
+*.engine
+
+# ==============================
+# NOTEBOOKS
+# ==============================
+.ipynb_checkpoints/
+*.ipynb
+
+# ==============================
+# DOCUMENTATION
+# ==============================
+_site/
+site/
+.docusaurus/
+book/
+docs/_build/
+docs/build/
+
+# ==============================
+# TESTING
+# ==============================
+test-reports/
+test-results/
+junit/
+*.test-results.xml
+*.test-results.json
+cypress/videos/
+cypress/screenshots/
+
+# ==============================
+# BUILD / DIST
+# ==============================
+*.tar.gz
+*.tgz
+*.zip
+*.rar
+dist/
+build/
+*.exe
+*.msi
+*.dmg
+out/
+target/
+
+# ==============================
+# CONTAINER
+# ==============================
+.dockerignore
+Dockerfile
+docker-compose.override.yml
+
+# ==============================
+# FRONTEND / UI (if used)
+# ==============================
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+.next/
+.nuxt/
+nuxt.d.ts
+out/
+_dist/
+.cache/
+.temp/
+*.map
+*.bundle.*
+
+# ==============================
+# ML / DATA SCIENCE
+# ==============================
+.mlflow/
+mlruns/
+wandb/
+runs/
+lightning_logs/
+tensorboard/
+tb_logs/
+*.tensorboard
+*.event
+*.tfevents
+*.pb
+*.meta
+*.data-*
+*.index
+*.snapshot
