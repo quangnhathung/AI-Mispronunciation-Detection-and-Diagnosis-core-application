@@ -6,7 +6,7 @@ from loguru import logger
 from app.services.model_registry import ModelRegistry
 from app.services.audio_service import AudioService
 from app.schemas.inference import InferenceResponse, PhonemePrediction, InferenceResult, InferenceSummary
-from app.core.exceptions import InferenceError, PreprocessError, ModelNotLoadedError, TextRequiredError
+from app.core.exceptions import MDDException, InferenceError, PreprocessError, ModelNotLoadedError, TextRequiredError
 from app.utils.time_utils import measure_time
 from app.utils.id_utils import generate_request_id
 
@@ -50,7 +50,7 @@ class InferenceService:
                 if model.requires_text and not text:
                     raise TextRequiredError(f"Model '{resolved_name}' requires ground-truth text")
 
-                predictions, result, summary = model.infer(
+                predictions, result, summary = await model.infer(
                     audio=audio,
                     sample_rate=sr,
                     text=text,
@@ -61,11 +61,11 @@ class InferenceService:
                 if not return_details:
                     predictions = []
 
-            except TextRequiredError:
-                raise
-            except (InferenceError, PreprocessError, ModelNotLoadedError):
+            except MDDException:
                 raise
             except Exception as e:
+                logger.error(f"Inference failed: {e}", exc_info=True)
+                raise InferenceError(f"Inference failed: {e}") from e
                 logger.error(f"Inference failed: {e}", exc_info=True)
                 raise InferenceError(f"Inference failed: {e}") from e
 

@@ -7,6 +7,21 @@ from loguru import logger
 from app.models.base_model import BaseModelWrapper
 from app.schemas.inference import InferenceResult, PhonemePrediction, InferenceSummary
 from app.core.exceptions import ModelNotLoadedError, InferenceError, PreprocessError
+from app.models.normalize import safe_tensor_to_list, safe_item, safe_index
+
+_cnn_root = Path(__file__).parent.parent.parent / "CNN_BiLSTM_CTC"
+_CNN_ROOT_STR = str(_cnn_root.resolve())
+_PROJECT_ROOT = str(_cnn_root.parent.resolve())
+
+logger.debug(f"[CNN] CNN root: {_CNN_ROOT_STR}")
+logger.debug(f"[CNN] Project root: {_PROJECT_ROOT}")
+
+for _p in [_PROJECT_ROOT, _CNN_ROOT_STR]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+for _key in list(sys.modules.keys()):
+    if _key.startswith("src.") or _key == "src":
+        sys.modules.pop(_key, None)
 
 
 class CNNBiLSTMCTCModel(BaseModelWrapper):
@@ -38,54 +53,67 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
         self.decoder = None
         self.audio_processor = None
 
+    def _ensure_path(self):
+        root_str = str(_cnn_root.resolve())
+        project_str = str(_cnn_root.parent.resolve())
+        other_roots = [p for p in sys.path if p != root_str and p != project_str and Path(p).name in ("Wav2vec2", "DAB_Transformer_Project")]
+        for p in other_roots:
+            sys.path.remove(p)
+        for _p in [project_str, root_str]:
+            if _p not in sys.path:
+                sys.path.insert(0, _p)
+        for _k in list(sys.modules.keys()):
+            if _k.startswith("CNN_BiLSTM_CTC.src"):
+                sys.modules.pop(_k, None)
+        logger.debug(f"[CNN] _ensure_path: root={root_str} project={project_str}")
+
     def load_model(self) -> None:
         try:
             import torch
-            cnn_root = Path(__file__).parent.parent.parent / "CNN_BiLSTM_CTC"
-            if cnn_root not in [Path(p) for p in sys.path]:
-                sys.path.insert(0, str(cnn_root))
-
-            from src.features.audio_processing import AudioProcessor
-            from src.features.mel_spec import MelFeatureExtractor
-            from src.datasets.tokenizer import PhonemeTokenizer
-            from src.decoders.greedy import GreedyDecoder
-            from src.utils.config import load_config
-
-            from src.models.cnn_bilstm_ctc import CNNBiLSTMCTC
-            from src.utils.helpers import load_checkpoint
-
+            self._ensure_path()
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+            from CNN_BiLSTM_CTC.src.features.audio_processing import AudioProcessor
+            from CNN_BiLSTM_CTC.src.features.mel_spec import MelFeatureExtractor
+            from CNN_BiLSTM_CTC.src.datasets.tokenizer import PhonemeTokenizer
+            from CNN_BiLSTM_CTC.src.decoders.greedy import GreedyDecoder
+            from CNN_BiLSTM_CTC.src.utils.config import get_config
+            from CNN_BiLSTM_CTC.src.models.cnn_bilstm_ctc import CNNBiLSTMCTC
+            from CNN_BiLSTM_CTC.src.utils.helpers import load_checkpoint
+
+            logger.debug("[CNN] All imports resolved successfully")
 
             cfg = None
             if self.config_path and self.config_path.exists():
-                cfg = load_config(self.config_path)
+                cfg = get_config(str(self.config_path))
             else:
-                config_file = cnn_root / "configs" / "config.yaml"
+                config_file = _cnn_root / "configs" / "config.yaml"
                 if config_file.exists():
-                    cfg = load_config(config_file)
+                    cfg = get_config(str(config_file))
 
             if not self.checkpoint_path or not self.checkpoint_path.exists():
                 raise ModelNotLoadedError(f"Checkpoint not found: {self.checkpoint_path}")
 
             self.tokenizer = PhonemeTokenizer()
             vocab_size = len(self.tokenizer)
+            blank_id = self.tokenizer.blank_id
 
-            model_cfg = cfg.model if cfg else {}
+            model_cfg = cfg.model if cfg and hasattr(cfg, 'model') else {}
             self.model = CNNBiLSTMCTC(
-                input_size=model_cfg.get("input_size", 80),
-                cnn_channels=model_cfg.get("cnn_channels", [64, 128, 256]),
-                rnn_hidden=model_cfg.get("rnn_hidden", 256),
-                rnn_layers=model_cfg.get("rnn_layers", 4),
+                input_dim=getattr(model_cfg, 'input_dim', 80) if not isinstance(model_cfg, dict) else model_cfg.get('input_dim', 80),
+                cnn_channels=getattr(model_cfg, 'cnn_channels', [64, 128, 256]) if not isinstance(model_cfg, dict) else model_cfg.get('cnn_channels', [64, 128, 256]),
+                rnn_hidden_size=getattr(model_cfg, 'rnn_hidden_size', 256) if not isinstance(model_cfg, dict) else model_cfg.get('rnn_hidden_size', 256),
+                rnn_num_layers=getattr(model_cfg, 'rnn_num_layers', 4) if not isinstance(model_cfg, dict) else model_cfg.get('rnn_num_layers', 4),
                 vocab_size=vocab_size,
-                dropout=model_cfg.get("dropout", 0.2),
+                cnn_dropout=getattr(model_cfg, 'cnn_dropout', 0.2) if not isinstance(model_cfg, dict) else model_cfg.get('cnn_dropout', 0.2),
             )
 
-            checkpoint = load_checkpoint(str(self.checkpoint_path), self.model, map_location=self.device)
+            checkpoint = load_checkpoint(str(self.checkpoint_path), self.model, device=self.device)
             self.model.to(self.device)
             self.model.eval()
             logger.info(f"Loaded epoch: {checkpoint.get('epoch', 'unknown')}")
 
-            self.audio_processor = AudioProcessor(target_sr=self.sample_rate)
+            self.audio_processor = AudioProcessor(sample_rate=self.sample_rate)
             self.processor = MelFeatureExtractor(
                 sample_rate=self.sample_rate,
                 n_mels=80,
@@ -93,7 +121,7 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
                 win_length=400,
                 hop_length=160,
             )
-            self.decoder = GreedyDecoder(tokenizer=self.tokenizer)
+            self.decoder = GreedyDecoder(blank_id=blank_id)
             self._loaded = True
             logger.info(f"CNN-BiLSTM-CTC model loaded: {self.checkpoint_path}")
         except Exception as e:
@@ -116,11 +144,14 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
         if self.audio_processor is None or self.processor is None:
             raise PreprocessError("Model not loaded. Call load_model() first.")
         try:
-            audio_processed = self.audio_processor(audio, sample_rate)
-            mel_spec = self.processor(audio_processed)
+            audio_tensor = torch.from_numpy(audio).float()
+            if audio_tensor.dim() == 1:
+                audio_tensor = audio_tensor.unsqueeze(0)
+            processed = self.audio_processor.process(audio_tensor, sample_rate)
+            mel_spec = self.processor(processed)
             mel_spec = (mel_spec - mel_spec.mean()) / (mel_spec.std() + 1e-8)
-            mel_tensor = torch.from_numpy(mel_spec).float().unsqueeze(0)
-            return mel_tensor.to(self.device)
+            batch, n_mels, time = mel_spec.shape
+            return mel_spec.to(self.device)
         except Exception as e:
             raise PreprocessError(f"CNN preprocessing failed: {e}") from e
 
@@ -133,6 +164,7 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
                 logits = self.model(features)
             return logits
         except Exception as e:
+            logger.error(f"CNN predict failed | features shape: {getattr(features, 'shape', 'N/A')} | error type: {type(e).__name__} | {e}", exc_info=True)
             raise InferenceError(f"CNN inference failed: {e}") from e
 
     def postprocess(self, raw_output: Any, **kwargs) -> tuple[list[PhonemePrediction], Optional[InferenceResult], InferenceSummary]:
@@ -148,17 +180,23 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
             else:
                 logits_np = logits
 
-            decoded_seq, conf = self.decoder.decode(logits_np)
-            phoneme_string = " ".join(decoded_seq)
+            logits_tensor = torch.from_numpy(logits_np).float()
+            decoded = self.decoder.decode(logits_tensor)
+            decoded_seq = decoded[0] if decoded else []
+            decoded_with_conf = self.decoder.decode_with_confidence(logits_tensor)
+            conf = decoded_with_conf[0][1] if decoded_with_conf else 0.0
+            _id2ph = self.tokenizer._id_to_phoneme
+            decoded_seq_str = [_id2ph[idx] for idx in decoded_seq]
+            phoneme_string = " ".join(decoded_seq_str)
 
             result = InferenceResult(
-                phoneme_sequence=decoded_seq,
+                phoneme_sequence=decoded_seq_str,
                 phoneme_string=phoneme_string,
                 overall_confidence=float(conf),
             )
 
             predictions: list[PhonemePrediction] = []
-            for ph in decoded_seq:
+            for ph in decoded_seq_str:
                 predictions.append(
                     PhonemePrediction(
                         phoneme=ph,
@@ -176,33 +214,58 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
             )
 
             if text:
-                from src.mdd.detector import MispronunciationDetector
-                from src.datasets.tokenizer import PhonemeTokenizer
                 tokenizer = self.tokenizer
-                target_ids = tokenizer.encode(text)
-                target_phonemes = [tokenizer.idx_to_phoneme[idx] for idx in target_ids if idx > 0]
+                phoneme_tokens = text.upper().split()
+                target_ids = safe_tensor_to_list(tokenizer.encode(phoneme_tokens), desc="target_ids")
+                logger.debug(f"[CNN] text='{text}' -> tokens={phoneme_tokens} -> ids={target_ids}")
+                _id2ph = tokenizer._id_to_phoneme
+                target_phonemes = [_id2ph[safe_index(idx)] for idx in target_ids if safe_index(idx) > 0]
+                logger.debug(f"[CNN] target_phonemes={target_phonemes}")
 
+                from CNN_BiLSTM_CTC.src.mdd.detector import MispronunciationDetector
                 detector = MispronunciationDetector(tokenizer=tokenizer)
-                feedback = detector.detect(target_phonemes, decoded_seq, logits_np)
+                feedback = detector.detect(
+                    predicted_ids=decoded_seq,
+                    target_ids=target_ids,
+                )
+                logger.debug(f"[CNN] feedback type={type(feedback).__name__} accuracy={feedback.accuracy}")
 
                 predictions = []
-                for item in feedback.to_dict():
-                    predictions.append(
-                        PhonemePrediction(
-                            phoneme=item.get("target", ""),
-                            status=item.get("type", "unknown"),
-                            confidence=item.get("confidence", 0.0),
-                            expected=item.get("target"),
-                            actual=item.get("predicted"),
-                            reason=item.get("message"),
-                        )
-                    )
+                for ph in feedback.correct_phonemes:
+                    predictions.append(PhonemePrediction(
+                        phoneme=ph, status="correct", confidence=1.0,
+                        expected=ph, actual=ph,
+                    ))
+                for ph in feedback.incorrect_phonemes:
+                    predictions.append(PhonemePrediction(
+                        phoneme=ph, status="incorrect", confidence=0.0,
+                        expected=ph, actual=ph,
+                        reason=f"Possible mispronunciation of /{ph}/",
+                    ))
+                for exp, pred, pos in feedback.substitutions:
+                    predictions.append(PhonemePrediction(
+                        phoneme=exp, status="substitution", confidence=0.0,
+                        expected=exp, actual=pred,
+                        reason=f"Nhầm /{exp}/ thành /{pred}/",
+                    ))
+                for ph in feedback.deletions:
+                    predictions.append(PhonemePrediction(
+                        phoneme=ph, status="deletion", confidence=0.0,
+                        expected=ph, actual=None,
+                        reason=f"Bạn bị nuốt âm /{ph}/",
+                    ))
+                for ph in feedback.insertions:
+                    predictions.append(PhonemePrediction(
+                        phoneme="-", status="insertion", confidence=0.0,
+                        expected=None, actual=ph,
+                        reason=f"Phát âm thừa âm /{ph}/",
+                    ))
 
                 summary = InferenceSummary(
                     total_phonemes=len(predictions),
                     correct_phonemes=sum(1 for p in predictions if p.status == "correct"),
                     incorrect_phonemes=sum(1 for p in predictions if p.status != "correct"),
-                    accuracy=feedback.accuracy if hasattr(feedback, "accuracy") else 0.0,
+                    accuracy=max(0.0, min(1.0, feedback.accuracy if hasattr(feedback, "accuracy") else 0.0)),
                 )
 
             return predictions, result, summary
