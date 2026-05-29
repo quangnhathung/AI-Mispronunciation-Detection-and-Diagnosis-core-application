@@ -52,6 +52,7 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
         self.tokenizer = None
         self.decoder = None
         self.audio_processor = None
+        self.g2p = None
 
     def _ensure_path(self):
         root_str = str(_cnn_root.resolve())
@@ -122,6 +123,14 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
                 hop_length=160,
             )
             self.decoder = GreedyDecoder(blank_id=blank_id)
+
+            try:
+                from g2p_en import G2p
+                self.g2p = G2p()
+            except ImportError:
+                logger.warning("g2p_en not installed, text-to-phoneme conversion disabled")
+                self.g2p = None
+
             self._loaded = True
             logger.info(f"CNN-BiLSTM-CTC model loaded: {self.checkpoint_path}")
         except Exception as e:
@@ -134,6 +143,7 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
         self.tokenizer = None
         self.decoder = None
         self.audio_processor = None
+        self.g2p = None
         self._loaded = False
         import torch
         torch.cuda.empty_cache()
@@ -215,9 +225,26 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
 
             if text:
                 tokenizer = self.tokenizer
-                phoneme_tokens = text.upper().split()
+
+                if self.g2p:
+                    raw_phones = self.g2p(text)
+                    phoneme_tokens = [p.strip().upper() for p in raw_phones if p.strip()]
+                else:
+                    phoneme_tokens = text.upper().split()
+
+                valid_tokens = []
+                for ph in phoneme_tokens:
+                    key = ph.upper() if not (ph.startswith("<") and ph.endswith(">")) else ph
+                    if key in tokenizer._phoneme_to_id and tokenizer._phoneme_to_id[key] != tokenizer.unk_id:
+                        valid_tokens.append(ph)
+
+                if valid_tokens:
+                    phoneme_tokens = valid_tokens
+                else:
+                    phoneme_tokens = phoneme_tokens[:1]
+
                 target_ids = safe_tensor_to_list(tokenizer.encode(phoneme_tokens), desc="target_ids")
-                logger.debug(f"[CNN] text='{text}' -> tokens={phoneme_tokens} -> ids={target_ids}")
+                logger.debug(f"[CNN] text='{text}' -> g2p={phoneme_tokens} -> ids={target_ids}")
                 _id2ph = tokenizer._id_to_phoneme
                 target_phonemes = [_id2ph[safe_index(idx)] for idx in target_ids if safe_index(idx) > 0]
                 logger.debug(f"[CNN] target_phonemes={target_phonemes}")
@@ -235,12 +262,6 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
                     predictions.append(PhonemePrediction(
                         phoneme=ph, status="correct", confidence=1.0,
                         expected=ph, actual=ph,
-                    ))
-                for ph in feedback.incorrect_phonemes:
-                    predictions.append(PhonemePrediction(
-                        phoneme=ph, status="incorrect", confidence=0.0,
-                        expected=ph, actual=ph,
-                        reason=f"Possible mispronunciation of /{ph}/",
                     ))
                 for exp, pred, pos in feedback.substitutions:
                     predictions.append(PhonemePrediction(
@@ -262,10 +283,10 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
                     ))
 
                 summary = InferenceSummary(
-                    total_phonemes=len(predictions),
-                    correct_phonemes=sum(1 for p in predictions if p.status == "correct"),
-                    incorrect_phonemes=sum(1 for p in predictions if p.status != "correct"),
-                    accuracy=max(0.0, min(1.0, feedback.accuracy if hasattr(feedback, "accuracy") else 0.0)),
+                    total_phonemes=feedback.total_phonemes,
+                    correct_phonemes=len(feedback.correct_phonemes),
+                    incorrect_phonemes=feedback.error_count,
+                    accuracy=max(0.0, min(1.0, feedback.accuracy)),
                 )
 
             return predictions, result, summary
