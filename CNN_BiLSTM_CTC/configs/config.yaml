@@ -3,7 +3,7 @@ model:
   input_dim: 80
   cnn_channels: [64, 128, 256]
   cnn_kernel_sizes: [3, 3, 3]
-  cnn_strides: [2, 2, 2]
+  cnn_strides: [2, 2, 1]
   cnn_dropout: 0.2
   rnn_hidden_size: 256
   rnn_num_layers: 4

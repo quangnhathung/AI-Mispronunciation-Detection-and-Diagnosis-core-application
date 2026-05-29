@@ -167,7 +167,10 @@ class CNNBiLSTMCTC(BaseModel):
             dropout=cnn_dropout,
         )
 
-        cnn_output_size = cnn_channels[-1] * (input_dim // (2 ** len(cnn_strides)))
+        freq_stride = 1
+        for s in cnn_strides:
+            freq_stride *= s
+        cnn_output_size = cnn_channels[-1] * (input_dim // freq_stride)
         if cnn_output_size == 0:
             cnn_output_size = cnn_channels[-1] * 1
 

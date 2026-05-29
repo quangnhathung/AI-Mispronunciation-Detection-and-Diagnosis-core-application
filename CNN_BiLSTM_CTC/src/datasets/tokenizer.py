@@ -77,7 +77,10 @@ class PhonemeTokenizer:
             if st not in all_phonemes:
                 all_phonemes.append(st)
 
-        self.vocab.extend(sorted(set(all_phonemes)))
+        if custom_phonemes:
+            self.vocab.extend(all_phonemes)
+        else:
+            self.vocab.extend(sorted(set(all_phonemes)))
 
         self._id_to_phoneme = {i: p for i, p in enumerate(self.vocab)}
         self._phoneme_to_id = {p: i for i, p in enumerate(self.vocab)}
@@ -121,18 +124,24 @@ class PhonemeTokenizer:
 
     def save_vocab(self, path: str) -> None:
         with open(path, "w", encoding="utf-8") as f:
-            for idx, phoneme in self.vocab:
+            for idx, phoneme in enumerate(self.vocab):
                 f.write(f"{idx}\t{phoneme}\n")
 
     @classmethod
     def load_vocab(cls, path: str) -> PhonemeTokenizer:
-        custom_phonemes = []
+        tok = cls.__new__(cls)
+        tok.blank_token = "<blank>"
+        tok.unk_token = "<unk>"
+        tok.include_stress = True
+        tok.vocab = []
         with open(path, "r", encoding="utf-8") as f:
             for line in f:
                 parts = line.strip().split("\t")
                 if len(parts) == 2:
-                    custom_phonemes.append(parts[1])
-        return cls(custom_phonemes=custom_phonemes)
+                    tok.vocab.append(parts[1])
+        tok._id_to_phoneme = {i: p for i, p in enumerate(tok.vocab)}
+        tok._phoneme_to_id = {p: i for i, p in enumerate(tok.vocab)}
+        return tok
 
     def __len__(self) -> int:
         return self.vocab_size

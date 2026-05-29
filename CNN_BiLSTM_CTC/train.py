@@ -19,8 +19,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=str,
-        default="./configs/config.yaml",
-        help="Path to config YAML file",
+        default=None,
+        help="Path to config YAML file (default: configs/config.yaml relative to this script)",
     )
     parser.add_argument(
         "--data_dir",
@@ -70,7 +70,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    config_path = Path(args.config)
+    script_dir = Path(__file__).parent.resolve()
+    config_path = Path(args.config) if args.config else script_dir / "configs" / "config.yaml"
     if not config_path.exists():
         logger.error(f"Config file not found: {config_path}")
         sys.exit(1)

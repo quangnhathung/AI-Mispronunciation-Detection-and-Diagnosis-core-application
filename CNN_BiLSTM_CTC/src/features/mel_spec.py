@@ -50,10 +50,6 @@ class MelFeatureExtractor(torch.nn.Module):
     def forward(self, waveform: torch.Tensor) -> torch.Tensor:
         mel = self.mel_spec(waveform)
         mel_db = self.amplitude_to_db(mel)
-        mean = mel_db.mean()
-        std = mel_db.std()
-        if std > 0:
-            mel_db = (mel_db - mean) / std
         return mel_db
 
     def extra_repr(self) -> str:

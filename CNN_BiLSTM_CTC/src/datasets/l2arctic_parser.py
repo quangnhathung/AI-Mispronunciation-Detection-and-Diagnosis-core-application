@@ -11,6 +11,31 @@ from loguru import logger
 
 _SPEAKER_META_FIELDS = ["accent", "gender", "native_language"]
 
+# L2Arctic non-standard phoneme → standard ARPAbet mapping
+PHONEME_NORMALIZE: Dict[str, str] = {
+    "AX": "AH",
+    "AXR": "ER",
+    "IX": "IH",
+    "HV": "HH",
+    "PAU": "SIL",
+    "EPI": "SP",
+}
+
+
+def _normalize_phoneme(raw: str) -> str:
+    ph = raw.strip().upper()
+    # Handle mispronunciation annotations: "AA1, AO, S" → canonical "AA1"
+    if "," in ph:
+        ph = ph.split(",")[0].strip().upper()
+    # Strip quality markers (e.g., AA1* → AA1)
+    ph = ph.rstrip("*")
+    # Normalize base form (strip stress, normalize, re-add stress)
+    stress_digits = "".join(re.findall(r"\d", ph))
+    base = re.sub(r"\d", "", ph)
+    normalized_base = PHONEME_NORMALIZE.get(base, base)
+    ph = normalized_base + stress_digits if stress_digits else normalized_base
+    return ph
+
 
 def _parse_phoneme_line(content: str) -> List[Tuple[str, float, float]]:
     """Parse TIMIT-style .phn file (3 or 4 columns: [index] start end phoneme)."""
@@ -23,8 +48,9 @@ def _parse_phoneme_line(content: str) -> List[Tuple[str, float, float]]:
         if m:
             start = float(m.group(1))
             end = float(m.group(2))
-            phoneme = m.group(3).strip()
-            items.append((phoneme, start, end))
+            phoneme = _normalize_phoneme(m.group(3))
+            if phoneme:
+                items.append((phoneme, start, end))
     return items
 
 
@@ -66,9 +92,9 @@ def _parse_textgrid_phones(textgrid_path: Path) -> List[Tuple[str, float, float]
     for match in interval_pattern.finditer(phones_section):
         start = float(match.group(1))
         end = float(match.group(2))
-        phoneme = match.group(3).strip()
+        phoneme = _normalize_phoneme(match.group(3))
         if phoneme:
-            items.append((phoneme.upper(), start, end))
+            items.append((phoneme, start, end))
 
     return items
 
