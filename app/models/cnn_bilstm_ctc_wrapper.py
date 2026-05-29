@@ -34,13 +34,26 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
     requires_text = False
     requires_gpu = False
     sample_rate = 16000
-    phoneme_set_size = 42
+    phoneme_set_size = 73
     phoneme_set = [
-        "<blank>", "<unk>", "AA0", "AA1", "AA2", "AE0", "AE1", "AE2",
-        "AH0", "AH1", "AH2", "AO0", "AO1", "AO2", "AW0", "AW1", "AW2",
-        "AY0", "AY1", "AY2", "B", "CH", "D", "DH", "EH0", "EH1", "EH2",
-        "ER0", "ER1", "ER2", "EY0", "EY1", "EY2", "F", "G", "HH",
+        "<blank>", "<unk>",
+        "AA0", "AA1", "AA2", "AE0", "AE1", "AE2",
+        "AH0", "AH1", "AH2", "AO0", "AO1", "AO2",
+        "AW0", "AW1", "AW2", "AY0", "AY1", "AY2",
+        "B", "CH", "D", "DH",
+        "EH0", "EH1", "EH2", "ER0", "ER1", "ER2",
+        "EY0", "EY1", "EY2",
+        "F", "G",
+        "HH",
         "IH0", "IH1", "IH2", "IY0", "IY1", "IY2",
+        "JH",
+        "K", "L", "M", "N", "NG",
+        "OW0", "OW1", "OW2", "OY0", "OY1", "OY2",
+        "P", "R", "S", "SH",
+        "SIL", "SP",
+        "T", "TH",
+        "UH0", "UH1", "UH2", "UW0", "UW1", "UW2",
+        "V", "W", "Y", "Z", "ZH",
     ]
 
     def __init__(self, checkpoint_path: Optional[str] = None, config_path: Optional[str] = None):
@@ -100,13 +113,21 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
             blank_id = self.tokenizer.blank_id
 
             model_cfg = cfg.model if cfg and hasattr(cfg, 'model') else {}
+            def _mc(key: str, default):
+                if isinstance(model_cfg, dict):
+                    return model_cfg.get(key, default)
+                return getattr(model_cfg, key, default)
             self.model = CNNBiLSTMCTC(
-                input_dim=getattr(model_cfg, 'input_dim', 80) if not isinstance(model_cfg, dict) else model_cfg.get('input_dim', 80),
-                cnn_channels=getattr(model_cfg, 'cnn_channels', [64, 128, 256]) if not isinstance(model_cfg, dict) else model_cfg.get('cnn_channels', [64, 128, 256]),
-                rnn_hidden_size=getattr(model_cfg, 'rnn_hidden_size', 256) if not isinstance(model_cfg, dict) else model_cfg.get('rnn_hidden_size', 256),
-                rnn_num_layers=getattr(model_cfg, 'rnn_num_layers', 4) if not isinstance(model_cfg, dict) else model_cfg.get('rnn_num_layers', 4),
+                input_dim=_mc('input_dim', 80),
+                cnn_channels=_mc('cnn_channels', [64, 128, 256]),
+                cnn_kernel_sizes=_mc('cnn_kernel_sizes', [3, 3, 3]),
+                cnn_strides=_mc('cnn_strides', [2, 2, 2]),
+                cnn_dropout=_mc('cnn_dropout', 0.2),
+                rnn_hidden_size=_mc('rnn_hidden_size', 256),
+                rnn_num_layers=_mc('rnn_num_layers', 4),
+                rnn_dropout=_mc('rnn_dropout', 0.3),
+                rnn_bidirectional=_mc('rnn_bidirectional', True),
                 vocab_size=vocab_size,
-                cnn_dropout=getattr(model_cfg, 'cnn_dropout', 0.2) if not isinstance(model_cfg, dict) else model_cfg.get('cnn_dropout', 0.2),
             )
 
             checkpoint = load_checkpoint(str(self.checkpoint_path), self.model, device=self.device)
