@@ -47,6 +47,15 @@ def _parse_textgrid_phones(textgrid_path: Path) -> List[Tuple[str, float, float]
     if not phones_tier_match:
         return []
 
+    # Only scan intervals WITHIN the phones tier block (from the matched header
+    # to the start of the next item or end of file).
+    phones_start = phones_tier_match.start()
+    next_item = re.search(r'\nitem\s+\[\d+\]:', content[phones_start + 1:])
+    if next_item:
+        phones_section = content[phones_start:phones_start + 1 + next_item.start()]
+    else:
+        phones_section = content[phones_start:]
+
     interval_pattern = re.compile(
         r'intervals\s+\[\d+\]:\s*\n'
         r'\s+xmin\s*=\s*([\d.eE+-]+)\s*\n'
@@ -54,7 +63,7 @@ def _parse_textgrid_phones(textgrid_path: Path) -> List[Tuple[str, float, float]
         r'\s+text\s*=\s*"([^"]*)"'
     )
 
-    for match in interval_pattern.finditer(content):
+    for match in interval_pattern.finditer(phones_section):
         start = float(match.group(1))
         end = float(match.group(2))
         phoneme = match.group(3).strip()

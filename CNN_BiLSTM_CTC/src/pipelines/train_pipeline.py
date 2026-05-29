@@ -17,9 +17,8 @@ from src.losses.ctc_loss import CTCLossWrapper
 from src.models.cnn_bilstm_ctc import CNNBiLSTMCTC
 from src.trainers.trainer import Trainer
 from src.utils.config import Config
-from src.utils.helpers import load_checkpoint
 from src.utils.seed import set_seed
-from src.visualization.plots import TrainingPlotter
+
 
 
 class TrainPipeline:
@@ -223,11 +222,6 @@ class TrainPipeline:
         train_loader, val_loader = self._build_dataloaders(train_dataset, val_dataset, tokenizer)
         model = self._build_model(tokenizer)
 
-        if getattr(self.config.training, "resume_from", None):
-            checkpoint_path = self.config.training.resume_from
-            logger.info(f"Resuming from checkpoint: {checkpoint_path}")
-            load_checkpoint(checkpoint_path, model, device=self.device)
-
         loss_fn = CTCLossWrapper(
             blank_id=tokenizer.blank_id,
             reduction="mean",
@@ -247,14 +241,12 @@ class TrainPipeline:
             config=self.config,
             tokenizer=tokenizer,
             device=self.device,
+            resume_from=getattr(self.config.training, "resume_from", None),
         )
 
         history = trainer.fit(num_epochs=self.config.training.epochs)
 
-        plotter = TrainingPlotter()
-        plot_path = plotter.plot_metrics(history)
-        if plot_path:
-            logger.info(f"Training plots saved to {plot_path}")
+        logger.info("Training plots saved by Trainer (live + comprehensive report)")
 
         self.config.training.save_dir = str(
             Path(getattr(self.config.training, "save_dir", "./checkpoints"))

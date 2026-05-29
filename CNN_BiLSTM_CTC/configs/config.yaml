@@ -9,7 +9,7 @@ model:
   rnn_num_layers: 4
   rnn_dropout: 0.3
   rnn_bidirectional: true
-  vocab_size: 42
+  vocab_size: 42  # will be overridden by tokenizer.vocab_size
 
 optimizer:
   name: adamw
@@ -19,14 +19,14 @@ optimizer:
 
 scheduler:
   name: cosine_annealing
-  T_max: 100
+  T_max: 150
   eta_min: 1.0e-06
-  warmup_steps: 0
+  warmup_steps: 1000
   warmup_ratio: 0.1
 
 data:
   dataset: l2arctic
-  data_dir: ./data/raw/L2_ARCTIC
+  data_dir: D:/HungQuang_WorkSpace/MDD_AI/data/raw
   cache_dir: ./data/cache
   manifest_dir: ./data/manifests
   processed_dir: ./data/processed
@@ -45,7 +45,7 @@ data:
   min_audio_length: 0.5
 
 training:
-  epochs: 100
+  epochs: 80
   batch_size: 16
   num_workers: 4
   pin_memory: true
@@ -54,7 +54,7 @@ training:
   gradient_accumulation: 1
   mixed_precision: true
   monitor_metric: val_f1_macro
-  early_stopping_patience: 10
+  early_stopping_patience: 6
   save_top_k: 3
   log_interval: 10
   eval_interval: 1

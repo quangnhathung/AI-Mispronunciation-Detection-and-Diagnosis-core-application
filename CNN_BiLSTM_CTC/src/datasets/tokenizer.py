@@ -32,7 +32,10 @@ STRESSED_VOWEL_MAP: Dict[str, List[str]] = {
     "UW": ["UW0", "UW1", "UW2"],
 }
 
+# SIL and SP are L2Arctic annotation markers for silence/short-pause.
+# They must be in the vocab so the model learns them instead of <unk>.
 SPECIAL_TOKENS: List[str] = ["<blank>", "<unk>", "<sos/eos>"]
+SILENCE_TOKENS: List[str] = ["SIL", "SP"]
 
 
 class PhonemeTokenizer:
@@ -68,6 +71,11 @@ class PhonemeTokenizer:
                     all_phonemes.append(cons)
         else:
             all_phonemes = list(ARPAbet_PHONEMES)
+
+        # Add silence markers used in L2Arctic annotations
+        for st in SILENCE_TOKENS:
+            if st not in all_phonemes:
+                all_phonemes.append(st)
 
         self.vocab.extend(sorted(set(all_phonemes)))
 
