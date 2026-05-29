@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MDD - Mispronunciation Detection</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="app-header">
+        <div class="header-brand">
+          <div class="brand-icon">MDD</div>
+          <div class="brand-text">
+            <h1>Mispronunciation Detection</h1>
+            <span class="brand-sub">Real-time pronunciation analysis</span>
+          </div>
+        </div>
+        <div class="header-status" id="headerStatus">
+          <span class="status-dot" id="statusDot"></span>
+          <span class="status-text" id="statusText">Checking...</span>
+        </div>
+      </header>
+
+      <nav class="app-nav" id="mainNav">
+        <button class="nav-btn active" data-tab="home">Home</button>
+        <button class="nav-btn" data-tab="inference">Inference</button>
+        <button class="nav-btn" data-tab="models">Models</button>
+      </nav>
+
+      <main class="app-main">
+        <section class="tab-content active" id="tabHome">
+          <div class="content-header">
+            <h2>System Overview</h2>
+            <p class="content-desc">Monitor backend health and model status</p>
+          </div>
+          <div class="cards-grid" id="homeCards">
+            <div class="card card-placeholder" id="homeLoading">
+              <div class="card-body">
+                <div class="spinner"></div>
+                <p>Connecting to backend...</p>
+              </div>
+            </div>
+          </div>
+          <div class="cards-grid" id="homeCardsData" style="display: none">
+            <div class="card card-info">
+              <div class="card-header">
+                <span class="card-icon">&#8505;</span>
+                <h3>Health</h3>
+              </div>
+              <div class="card-body" id="healthBody">
+                <div class="stat-row">
+                  <span>Status:</span
+                  ><span class="stat-value" id="healthStatus">-</span>
+                </div>
+                <div class="stat-row">
+                  <span>Version:</span
+                  ><span class="stat-value" id="healthVersion">-</span>
+                </div>
+              </div>
+            </div>
+            <div class="card card-info">
+              <div class="card-header">
+                <span class="card-icon">&#9881;</span>
+                <h3>Readiness</h3>
+              </div>
+              <div class="card-body" id="readyBody">
+                <div class="stat-row">
+                  <span>Ready:</span
+                  ><span class="stat-value" id="readyStatus">-</span>
+                </div>
+                <div class="stat-row">
+                  <span>Loaded:</span
+                  ><span class="stat-value" id="readyLoaded">-</span>
+                </div>
+                <div class="stat-row">
+                  <span>Failed:</span
+                  ><span class="stat-value" id="readyFailed">-</span>
+                </div>
+              </div>
+            </div>
+            <div class="card card-info card-wide">
+              <div class="card-header">
+                <span class="card-icon">&#9432;</span>
+                <h3>Version Info</h3>
+              </div>
+              <div class="card-body" id="versionBody">
+                <div class="stat-row">
+                  <span>App:</span
+                  ><span class="stat-value" id="versionApp">-</span>
+                </div>
+                <div class="stat-row">
+                  <span>Python:</span
+                  ><span class="stat-value" id="versionPython">-</span>
+                </div>
+                <div class="stat-row">
+                  <span>Dependencies:</span
+                  ><span class="stat-value" id="versionDeps">-</span>
+                </div>
+              </div>
+            </div>
+            <div class="card card-info card-wide">
+              <div class="card-header">
+                <span class="card-icon">&#9733;</span>
+                <h3>Registered Models</h3>
+              </div>
+              <div class="card-body" id="modelsBody">
+                <div class="stat-row">
+                  <span>Total:</span
+                  ><span class="stat-value" id="modelsTotal">-</span>
+                </div>
+              </div>
+              <div class="card-list" id="modelsList"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-content" id="tabInference">
+          <div class="content-header">
+            <h2>Pronunciation Analysis</h2>
+            <p class="content-desc">
+              Record or upload audio to detect mispronunciations
+            </p>
+          </div>
+
+          <div class="inference-layout">
+            <div class="inference-input-area">
+              <div class="card">
+                <div class="card-header">
+                  <h3>Audio Source</h3>
+                </div>
+                <div class="card-body">
+                  <div class="source-tabs">
+                    <button class="source-btn active" data-source="record">
+                      Record
+                    </button>
+                    <button class="source-btn" data-source="upload">
+                      Upload
+                    </button>
+                  </div>
+
+                  <div class="source-panel active" id="panelRecord">
+                    <div class="recorder-ui">
+                      <div class="recorder-timer" id="recorderTimer">00:00</div>
+                      <div class="recorder-visual" id="recorderVisual">
+                        <canvas
+                          id="visualizer"
+                          width="300"
+                          height="60"
+                        ></canvas>
+                      </div>
+                      <div class="recorder-controls">
+                        <button
+                          class="btn btn-record"
+                          id="btnRecord"
+                          title="Start recording"
+                        >
+                          <span class="btn-icon">&#9679;</span> Record
+                        </button>
+                        <button
+                          class="btn btn-stop"
+                          id="btnStop"
+                          title="Stop recording"
+                          disabled
+                        >
+                          <span class="btn-icon">&#9632;</span> Stop
+                        </button>
+                        <button
+                          class="btn btn-reset"
+                          id="btnReset"
+                          title="Reset recording"
+                          disabled
+                        >
+                          <span class="btn-icon">&#8635;</span> Reset
+                        </button>
+                      </div>
+                      <div
+                        class="recorder-preview"
+                        id="recorderPreview"
+                        style="display: none"
+                      >
+                        <audio id="audioPreview" controls></audio>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="source-panel" id="panelUpload">
+                    <div class="upload-zone" id="uploadZone">
+                      <div class="upload-icon">&#8623;</div>
+                      <p class="upload-text">
+                        Drop audio file here or click to browse
+                      </p>
+                      <p class="upload-hint">
+                        WAV, MP3, FLAC, M4A, OGG (max 10MB)
+                      </p>
+                      <input
+                        type="file"
+                        id="fileInput"
+                        accept="audio/wav,audio/mpeg,audio/flac,audio/mp4,audio/ogg,.wav,.mp3,.flac,.m4a,.ogg"
+                        hidden
+                      />
+                      <div
+                        class="upload-file-info"
+                        id="uploadFileInfo"
+                        style="display: none"
+                      >
+                        <span class="file-name" id="uploadFileName"></span>
+                        <span class="file-size" id="uploadFileSize"></span>
+                        <button class="btn btn-small" id="btnClearFile">
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="inference-config">
+                    <div class="form-group">
+                      <label for="modelSelect">Model</label>
+                      <select id="modelSelect">
+                        <option value="auto">Auto-select</option>
+                        <option value="wav2vec2">Wav2Vec2-MDD</option>
+                        <option value="cnn_bilstm_ctc">CNN-BiLSTM-CTC</option>
+                        <option value="dab_transformer">DAB-Transformer</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="textInput">Reference Text</label>
+                      <input
+                        type="text"
+                        id="textInput"
+                        placeholder="Enter ground-truth text (required for Wav2Vec2)"
+                      />
+                      <span class="form-hint"
+                        >Required for Wav2Vec2. Recommended for detailed error
+                        detection.</span
+                      >
+                    </div>
+                    <div class="form-group">
+                      <label for="thresholdSlider"
+                        >Threshold: <span id="thresholdValue">0.50</span></label
+                      >
+                      <input
+                        type="range"
+                        id="thresholdSlider"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value="0.5"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    class="btn btn-primary btn-full"
+                    id="btnInfer"
+                    disabled
+                  >
+                    <span class="btn-icon">&#9654;</span> Analyze Pronunciation
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="inference-output-area">
+              <div
+                class="card card-results"
+                id="cardResults"
+                style="display: none"
+              >
+                <div class="card-header">
+                  <h3>Analysis Results</h3>
+                  <span class="result-badge" id="resultBadge"></span>
+                </div>
+                <div class="card-body">
+                  <div class="result-meta" id="resultMeta"></div>
+                  <div class="result-summary" id="resultSummary"></div>
+                  <div class="result-phonemes" id="resultPhonemes"></div>
+                </div>
+              </div>
+
+              <div
+                class="card card-processing"
+                id="cardProcessing"
+                style="display: none"
+              >
+                <div class="card-body">
+                  <div class="processing-indicator">
+                    <div class="spinner"></div>
+                    <div class="processing-text">
+                      <p id="processingStatus">Analyzing audio...</p>
+                      <p class="processing-sub" id="processingModel">
+                        Model: -
+                      </p>
+                    </div>
+                  </div>
+                  <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card card-empty" id="cardEmpty">
+                <div class="card-body">
+                  <div class="empty-state">
+                    <div class="empty-icon">&#127908;</div>
+                    <h3>Ready for Analysis</h3>
+                    <p>
+                      Record or upload audio, then click "Analyze Pronunciation"
+                      to detect mispronunciations.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-content" id="tabModels">
+          <div class="content-header">
+            <h2>Model Management</h2>
+            <p class="content-desc">
+              View and manage registered pronunciation models
+            </p>
+          </div>
+          <div id="modelsContainer">
+            <div class="card card-placeholder" id="modelsLoading">
+              <div class="card-body">
+                <div class="spinner"></div>
+                <p>Loading models...</p>
+              </div>
+            </div>
+          </div>
+          <div id="modelsListContainer" style="display: none"></div>
+        </section>
+      </main>
+
+      <div class="toast-container" id="toastContainer"></div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
