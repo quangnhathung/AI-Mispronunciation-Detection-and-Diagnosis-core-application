@@ -19,6 +19,12 @@
     dab_transformer: "DAB-Transformer",
   };
 
+  const MODEL_ENDPOINTS = {
+    cnn_bilstm_ctc: "/infer/cnn-bilstm-ctc",
+    dab_transformer: "/infer/dab-transformer",
+    wav2vec2: "/infer/wav2vec2",
+  };
+
   let backendOnline = false;
   let recordingState = {
     stream: null,
@@ -90,8 +96,12 @@
         "/labels?model_name=" + encodeURIComponent(modelName || "wav2vec2"),
       );
     },
-    async infer(formData) {
-      const url = getApiUrl("/infer");
+    async infer(formData, model) {
+      var endpointPath = MODEL_ENDPOINTS[model];
+      if (!endpointPath) {
+        throw new Error("Unknown model: " + model);
+      }
+      const url = getApiUrl(endpointPath);
       const res = await fetch(url, { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) {
@@ -825,7 +835,7 @@
     cardProcessing.style.display = "";
     $("processingStatus").textContent = "Analyzing audio...";
     $("processingModel").textContent =
-      "Model: " + (MODEL_NAMES[model] || model || "auto");
+      "Model: " + (MODEL_NAMES[model] || model);
 
     var progressFill = $("progressFill");
     progressFill.style.animation = "none";
@@ -839,17 +849,15 @@
       } else if (uploadedFile) {
         formData.append("file", uploadedFile);
       }
-      formData.append("model_name", model);
       if (text) formData.append("text", text);
       formData.append("top_k", String(topK));
       formData.append("threshold", String(threshold));
       formData.append("return_details", String(returnDetails));
-      formData.append("language", "en");
 
       progressFill.style.width = "60%";
       $("processingStatus").textContent = "Running model inference...";
 
-      var result = await api.infer(formData);
+      var result = await api.infer(formData, model);
 
       progressFill.style.width = "100%";
       $("processingStatus").textContent = "Analysis complete!";
