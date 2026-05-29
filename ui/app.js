@@ -447,14 +447,9 @@
 
   // === RECORDER ===
   function initRecorder() {
-    var btnRecord = $("btnRecord");
-    var btnStop = $("btnStop");
-    var btnReset = $("btnReset");
-    var timer = $("recorderTimer");
-
-    btnRecord.addEventListener("click", startRecording);
-    btnStop.addEventListener("click", stopRecording);
-    btnReset.addEventListener("click", resetRecording);
+    $("btnRecord").addEventListener("click", startRecording);
+    $("btnStop").addEventListener("click", stopRecording);
+    $("btnReset").addEventListener("click", resetRecording);
   }
 
   async function startRecording() {
@@ -506,9 +501,9 @@
       recordingState.startTime = Date.now();
       recordingState.timerInterval = setInterval(function () {
         var elapsed = (Date.now() - recordingState.startTime) / 1000;
-        timer.textContent = formatTime(elapsed);
+        $("recorderTimer").textContent = formatTime(elapsed);
       }, 100);
-      timer.classList.add("recording");
+      $("recorderTimer").classList.add("recording");
       btnRecord.disabled = true;
       btnStop.disabled = false;
       btnReset.disabled = true;
