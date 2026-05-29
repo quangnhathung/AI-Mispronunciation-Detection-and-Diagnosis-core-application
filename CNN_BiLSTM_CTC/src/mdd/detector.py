@@ -11,10 +11,14 @@ class PronunciationFeedback:
     utterance_id: str
     speaker: str
     correct_phonemes: List[str] = field(default_factory=list)
+    correct_confidences: List[float] = field(default_factory=list)
     incorrect_phonemes: List[str] = field(default_factory=list)
     substitutions: List[Tuple[str, str, int]] = field(default_factory=list)
+    substitution_confidences: List[float] = field(default_factory=list)
     deletions: List[str] = field(default_factory=list)
+    deletions_confidences: List[float] = field(default_factory=list)
     insertions: List[str] = field(default_factory=list)
+    insertions_confidences: List[float] = field(default_factory=list)
     per: float = 0.0
     accuracy: float = 0.0
     total_phonemes: int = 0
@@ -72,38 +76,52 @@ class MispronunciationDetector:
         target_ids: List[int],
         utterance_id: str = "",
         speaker: str = "",
+        confidences: Optional[List[float]] = None,
     ) -> PronunciationFeedback:
         pred_clean = [p for p in predicted_ids]
         targ_clean = [t for t in target_ids]
 
-        pred_phonemes = self.tokenizer.decode(pred_clean)
-        targ_phonemes = self.tokenizer.decode(targ_clean)
-
         aligned_pred, aligned_target = self._align_ids(pred_clean, targ_clean)
 
         substitutions: List[Tuple[str, str, int]] = []
+        substitution_confidences: List[float] = []
         deletions: List[str] = []
+        deletions_confidences: List[float] = []
         insertions: List[str] = []
+        insertions_confidences: List[float] = []
         correct: List[str] = []
+        correct_confidences: List[float] = []
         incorrect: List[str] = []
+
+        conf_idx = 0
 
         for pos, (p, t) in enumerate(zip(aligned_pred, aligned_target)):
             if p == -1 and t != -1:
                 t_ph = self.tokenizer.decode([t])[0]
                 deletions.append(t_ph)
+                deletions_confidences.append(0.0)
                 incorrect.append(t_ph)
             elif p != -1 and t == -1:
                 p_ph = self.tokenizer.decode([p])[0]
+                p_conf = confidences[conf_idx] if confidences and conf_idx < len(confidences) else 0.0
                 insertions.append(p_ph)
+                insertions_confidences.append(p_conf)
                 incorrect.append(p_ph)
+                conf_idx += 1
             elif p == t:
                 t_ph = self.tokenizer.decode([t])[0]
+                p_conf = confidences[conf_idx] if confidences and conf_idx < len(confidences) else 0.0
                 correct.append(t_ph)
+                correct_confidences.append(p_conf)
+                conf_idx += 1
             else:
                 t_ph = self.tokenizer.decode([t])[0]
                 p_ph = self.tokenizer.decode([p])[0]
+                p_conf = confidences[conf_idx] if confidences and conf_idx < len(confidences) else 0.0
                 substitutions.append((t_ph, p_ph, pos))
+                substitution_confidences.append(p_conf)
                 incorrect.append(t_ph)
+                conf_idx += 1
 
         total = len(targ_clean)
         errors = len(substitutions) + len(deletions) + len(insertions)
@@ -114,10 +132,14 @@ class MispronunciationDetector:
             utterance_id=utterance_id,
             speaker=speaker,
             correct_phonemes=correct,
+            correct_confidences=correct_confidences,
             incorrect_phonemes=incorrect,
             substitutions=substitutions,
+            substitution_confidences=substitution_confidences,
             deletions=deletions,
+            deletions_confidences=deletions_confidences,
             insertions=insertions,
+            insertions_confidences=insertions_confidences,
             per=per,
             accuracy=accuracy,
             total_phonemes=total,
@@ -136,15 +158,15 @@ class MispronunciationDetector:
         from src.decoders.greedy import GreedyDecoder
 
         decoder = GreedyDecoder(blank_id=self.tokenizer.blank_id)
-        predictions = decoder.decode(log_probs, input_lengths)
+        decoded = decoder.decode_with_confidence(log_probs, input_lengths)
 
         results = []
-        for i, (pred, targ) in enumerate(zip(predictions, targets)):
+        for i, ((pred, confs, avg_conf), targ) in enumerate(zip(decoded, targets)):
             targ_len = target_lengths[i].item()
             targ_clean = targ[:targ_len].tolist()
             uid = utterance_ids[i] if utterance_ids else f"utt_{i}"
             spk = speakers[i] if speakers else ""
-            feedback = self.detect(pred, targ_clean, uid, spk)
+            feedback = self.detect(pred, targ_clean, uid, spk, confidences=confs)
             results.append(feedback)
 
         return results

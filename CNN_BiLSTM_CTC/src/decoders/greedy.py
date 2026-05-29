@@ -22,7 +22,7 @@ class GreedyDecoder:
 
     def decode_with_confidence(
         self, log_probs: torch.Tensor, lengths: Optional[torch.Tensor] = None
-    ) -> List[Tuple[List[int], float]]:
+    ) -> List[Tuple[List[int], List[float], float]]:
         B, T, V = log_probs.shape
         probs = torch.softmax(log_probs, dim=-1)
         predictions = log_probs.argmax(dim=-1)
@@ -38,20 +38,24 @@ class GreedyDecoder:
             prev = self.blank_id
             for t in range(seq_len):
                 token = pred[t].item()
-                if token != self.blank_id and token != prev:
+                if token == self.blank_id:
+                    continue
+                if token != prev:
                     collapsed_ids.append(token)
                     collapsed_conf.append(prob[t, token].item())
                 prev = token
 
             avg_conf = sum(collapsed_conf) / len(collapsed_conf) if collapsed_conf else 0.0
-            results.append((collapsed_ids, avg_conf))
+            results.append((collapsed_ids, collapsed_conf, avg_conf))
         return results
 
     def _collapse(self, sequence: List[int]) -> List[int]:
         collapsed = []
         prev = self.blank_id
         for token in sequence:
-            if token != self.blank_id and token != prev:
+            if token == self.blank_id:
+                continue
+            if token != prev:
                 collapsed.append(token)
             prev = token
         return collapsed

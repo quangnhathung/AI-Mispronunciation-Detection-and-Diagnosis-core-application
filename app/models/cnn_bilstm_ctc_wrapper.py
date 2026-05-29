@@ -159,7 +159,6 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
                 audio_tensor = audio_tensor.unsqueeze(0)
             processed = self.audio_processor.process(audio_tensor, sample_rate)
             mel_spec = self.processor(processed)
-            mel_spec = (mel_spec - mel_spec.mean()) / (mel_spec.std() + 1e-8)
             batch, n_mels, time = mel_spec.shape
             return mel_spec.to(self.device)
         except Exception as e:
@@ -191,10 +190,15 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
                 logits_np = logits
 
             logits_tensor = torch.from_numpy(logits_np).float()
-            decoded = self.decoder.decode(logits_tensor)
-            decoded_seq = decoded[0] if decoded else []
             decoded_with_conf = self.decoder.decode_with_confidence(logits_tensor)
-            conf = decoded_with_conf[0][1] if decoded_with_conf else 0.0
+            if decoded_with_conf:
+                decoded_seq = decoded_with_conf[0][0]
+                decoded_confs = decoded_with_conf[0][1]
+                conf = decoded_with_conf[0][2]
+            else:
+                decoded_seq = []
+                decoded_confs = []
+                conf = 0.0
             _id2ph = self.tokenizer._id_to_phoneme
             decoded_seq_str = [_id2ph[idx] for idx in decoded_seq]
             phoneme_string = " ".join(decoded_seq_str)
@@ -206,12 +210,12 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
             )
 
             predictions: list[PhonemePrediction] = []
-            for ph in decoded_seq_str:
+            for ph, cnf in zip(decoded_seq_str, decoded_confs):
                 predictions.append(
                     PhonemePrediction(
                         phoneme=ph,
                         status="unknown",
-                        confidence=0.0,
+                        confidence=float(cnf),
                         reason="ASR output, no alignment available without ground truth",
                     )
                 )
@@ -246,7 +250,7 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
                 target_ids = safe_tensor_to_list(tokenizer.encode(phoneme_tokens), desc="target_ids")
                 logger.debug(f"[CNN] text='{text}' -> g2p={phoneme_tokens} -> ids={target_ids}")
                 _id2ph = tokenizer._id_to_phoneme
-                target_phonemes = [_id2ph[safe_index(idx)] for idx in target_ids if safe_index(idx) > 0]
+                target_phonemes = [_id2ph[safe_index(idx)] for idx in target_ids if safe_index(idx) not in (tokenizer.blank_id, tokenizer.unk_id)]
                 logger.debug(f"[CNN] target_phonemes={target_phonemes}")
 
                 from CNN_BiLSTM_CTC.src.mdd.detector import MispronunciationDetector
@@ -254,30 +258,31 @@ class CNNBiLSTMCTCModel(BaseModelWrapper):
                 feedback = detector.detect(
                     predicted_ids=decoded_seq,
                     target_ids=target_ids,
+                    confidences=decoded_confs,
                 )
                 logger.debug(f"[CNN] feedback type={type(feedback).__name__} accuracy={feedback.accuracy}")
 
                 predictions = []
-                for ph in feedback.correct_phonemes:
+                for ph, cnf in zip(feedback.correct_phonemes, feedback.correct_confidences):
                     predictions.append(PhonemePrediction(
-                        phoneme=ph, status="correct", confidence=1.0,
+                        phoneme=ph, status="correct", confidence=float(cnf),
                         expected=ph, actual=ph,
                     ))
-                for exp, pred, pos in feedback.substitutions:
+                for (exp, pred, pos), cnf in zip(feedback.substitutions, feedback.substitution_confidences):
                     predictions.append(PhonemePrediction(
-                        phoneme=exp, status="substitution", confidence=0.0,
+                        phoneme=exp, status="substitution", confidence=float(cnf),
                         expected=exp, actual=pred,
                         reason=f"Nhầm /{exp}/ thành /{pred}/",
                     ))
-                for ph in feedback.deletions:
+                for ph, cnf in zip(feedback.deletions, feedback.deletions_confidences):
                     predictions.append(PhonemePrediction(
-                        phoneme=ph, status="deletion", confidence=0.0,
+                        phoneme=ph, status="deletion", confidence=float(cnf),
                         expected=ph, actual=None,
                         reason=f"Bạn bị nuốt âm /{ph}/",
                     ))
-                for ph in feedback.insertions:
+                for ph, cnf in zip(feedback.insertions, feedback.insertions_confidences):
                     predictions.append(PhonemePrediction(
-                        phoneme="-", status="insertion", confidence=0.0,
+                        phoneme="-", status="insertion", confidence=float(cnf),
                         expected=None, actual=ph,
                         reason=f"Phát âm thừa âm /{ph}/",
                     ))

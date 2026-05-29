@@ -59,7 +59,7 @@ class Predictor:
             input_lengths = torch.tensor([log_probs.size(1)], device=self.device)
 
             decoded = self.decoder.decode_with_confidence(log_probs, input_lengths)
-            pred_ids, confidence = decoded[0]
+            pred_ids, pred_confs, confidence = decoded[0]
             pred_phonemes = self.tokenizer.decode(pred_ids)
 
         return {
