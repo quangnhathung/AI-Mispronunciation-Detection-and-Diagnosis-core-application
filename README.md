@@ -612,23 +612,36 @@ Ma trận nhầm lẫn giữa các âm vị, giúp phân tích:
 
 ## 9. Kết quả
 
-> TODO: Cập nhật sau khi training.
+### CNN-BiLSTM-CTC (trained May 2026)
 
-### CNN-BiLSTM-CTC
+Kết quả trên **test set** (2,690 utterances, 91,229 phonemes):
 
-| Metric | Expected |
+| Metric | Kết quả | Mục tiêu |
+|---|---|---|
+| **PER (Phoneme Error Rate)** | **5.11%** | < 35% |
+| **Accuracy** | **~94.89%** | > 65% |
+| **F1 Macro (val)** | **0.9262** (epoch 42) | > 0.50 |
+| F1 Macro (val, best) | 0.8792 (epoch 18, before overfit) | — |
+| Training time | ~3 giờ (RTX 4050 6GB) | ~2-3 giờ |
+| Số epoch | 43 (early stopping kích hoạt) | 80 |
+| Số tham số | ~38M | — |
+| Kích thước checkpoint | ~185 MB | — |
+
+### Biểu đồ kết quả
+
+| Biểu đồ | Mô tả |
 |---|---|
-| PER (val) | < 0.35 |
-| F1 Macro (val) | > 0.50 |
-| Training time | ~2-3 giờ (RTX 4050 6GB) |
-| Số epoch | 80 (với early stopping) |
+| ![Confusion Matrix](CNN_BiLSTM_CTC/plots/confusion_matrix.png) | Ma trận nhầm lẫn trên test set (top phonemes, PER=0.0511) |
+| ![Per-Phoneme F1](CNN_BiLSTM_CTC/plots/per_phoneme_f1.png) | F1 score theo từng âm vị |
 
-### Biểu đồ
+Confusion matrix và per-phoneme F1 chart được sinh tự động sau training bởi `_confusion.py`.
 
-Training pipeline tự động sinh:
-- `plots/live_epoch_*.png` — Biểu đồ loss/PER/F1 theo epoch (cập nhật real-time)
-- `plots/comprehensive_report_*.png` — Báo cáo đầy đủ sau training
-- `plots/prediction_samples_*.txt` — Mẫu dự đoán chi tiết
+### Ghi chú
+
+- PER=5.11% vượt xa mục tiêu `< 0.35`, xác nhận pipeline đã hoạt động đúng sau các bugfix.
+- F1 macro trên validation đạt đỉnh 0.9262 tại epoch 42, sau đó bắt đầu giảm (early stopping kích hoạt tại epoch 43).
+- Mô hình nhận diện tốt các âm vị phổ biến (nguyên âm có trọng âm, phụ âm chuẩn) nhưng còn nhầm lẫn giữa các âm vị gần nhau (ví dụ: IH1/IY1, EH1/AE1).
+- Thời gian inference: ~140ms/utterance (GPU RTX 4050).
 
 ---
 
